@@ -1,19 +1,28 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'screens/home_screen.dart';
 import 'screens/game_screen.dart';
+import 'screens/teamselection_screen.dart';
 
 void main() {
-  runApp(const SnakeLadderGame());
+  runApp(const TestGame());
 }
 
-class SnakeLadderGame extends StatelessWidget {
-  const SnakeLadderGame({super.key});
+class TestGame extends StatelessWidget {
+  const TestGame({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const GameScreen(),
+      title: 'Test Game', // Changed app title here
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomeScreen(),
+        //'/': (context) => const TeamSelectionScreen(),
+        '/game': (context) => const GameScreen(),
+        '/select': (context) => const TeamSelectionScreen(),
+      },
     );
   }
 }

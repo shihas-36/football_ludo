@@ -2,6 +2,7 @@
 import 'constants.dart';
 import 'package:flutter/material.dart';
 import 'pawn_widget.dart';
+import '../interface/pallate.dart';
 import '../models/player.dart'; // adjust path as needed
 
 class BoardTile extends StatelessWidget {
@@ -36,7 +37,7 @@ class BoardTile extends StatelessWidget {
     } else if (violetTiles.contains(number)) {
       tileColor = Colors.indigo[300]!;
     } else {
-      tileColor = Color(0xFFEFFCD9);
+      tileColor = Pallate.lightcream;
     }
 
     return Container(
