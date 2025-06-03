@@ -118,8 +118,8 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen>
         context,
         '/game',
         arguments: {
-          'homeTeamName': allTeams[homeTeamIndex].name,
-          'awayTeamName': allTeams[awayTeamIndex].name,
+          'homeTeam': allTeams[homeTeamIndex],
+          'awayTeam': allTeams[awayTeamIndex],
         },
       );
     }
