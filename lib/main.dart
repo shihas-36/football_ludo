@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/teamselection_screen.dart';
+import 'screens/gamemode_screen.dart';
 
 void main() {
   runApp(const TestGame());
@@ -19,7 +20,7 @@ class TestGame extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(),
-        //'/': (context) => const TeamSelectionScreen(),
+        '/mode': (context) => const GameModeScreen(),
         '/game': (context) => const GameScreen(),
         '/select': (context) => const TeamSelectionScreen(),
       },

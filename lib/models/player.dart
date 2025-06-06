@@ -8,7 +8,7 @@ class Player {
   final Color color;
   String work;
   final String logo;
-
+  final String mode;
   Player({
     required this.name,
     this.position = 1,
@@ -17,6 +17,7 @@ class Player {
     required this.color,
     this.work = "PLAY ON",
     required this.logo,
+    required this.mode,
   });
 
   void moveTo(int newPosition) {
