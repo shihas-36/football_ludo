@@ -1,11 +1,13 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/home_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/teamselection_screen.dart';
 import 'screens/gamemode_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const TestGame());
 }
 
@@ -16,7 +18,7 @@ class TestGame extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Test Game', // Changed app title here
+      title: 'Test Game',
       initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(),

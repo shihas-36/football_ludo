@@ -94,7 +94,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     onPressed: () {
                       Navigator.pushNamed(
-                          context, '/select'); // Ensure this route is defined
+                          context, '/mode'); // Ensure this route is defined
                     },
                     child: Text(
                       "PLAY",

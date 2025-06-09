@@ -1,13 +1,16 @@
 // lib/screens/game_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:football_ludo/interface/pallate.dart';
 import 'dart:math';
 import '../models/player.dart';
 import '../widgets/board_tile.dart';
 import '../widgets/dice_widget.dart';
 import '../widgets/dice_3d.dart';
+import '../models/teams.dart';
 import 'winner_screen.dart';
 import 'package:football_ludo/widgets/constants.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -17,11 +20,12 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  late Player player1;
-  late Player player2;
+  late final Player player1;
+  late final Player player2;
   late Player currentPlayer;
   late Player lastPlayer;
-  Player? extraPlayer; // to track who triggered extra roll
+  Player? extraPlayer;
+  Player? nonplayer; // to track who triggered extra roll
 
   int diceRoll = 1;
   bool isFreekickRoll = false;
@@ -31,11 +35,28 @@ class _GameScreenState extends State<GameScreen> {
   String half = "1st -HALF";
   int extra = 7;
   int e = 0;
+  // Ensure we run it only once
+
   @override
-  void initState() {
-    super.initState();
-    player1 = Player(name: 'RED', color: Colors.red, logo: 'assets/utd.png');
-    player2 = Player(name: 'BLUE', color: Colors.blue, logo: 'assets/che.png');
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+
+    final Team homeTeam = args['homeTeam'];
+    final Team awayTeam = args['awayTeam'];
+
+    player1 = Player(
+      name: homeTeam.name,
+      color: homeTeam.color,
+      logo: homeTeam.logo,
+      mode: "local",
+    );
+    player2 = Player(
+        name: awayTeam.name,
+        color: awayTeam.color,
+        logo: awayTeam.logo,
+        mode: args['mode']);
 
     currentPlayer = player1;
     lastPlayer = currentPlayer;
@@ -47,44 +68,43 @@ class _GameScreenState extends State<GameScreen> {
       diceRoll = Random().nextInt(6) + 1;
       int newPos = currentPlayer.position;
 
-      if (isExtraRoll) {
+      if (extraPlayer == currentPlayer) {
+        String lname = nonplayer!.name;
+        String cname = extraPlayer!.name;
+        isExtraRoll = true;
+        print("extra : $cname----non:$lname");
+
         // ❌ Cancel if opponent reached the same tile
-        if ((currentPlayer == player1 && player2.position == purpleTiles[e]) ||
-            (currentPlayer == player2 && player1.position == purpleTiles[e])) {
+        if (nonplayer?.position == purpleTiles[e]) {
+          if (e < 2) e++;
+          extraPlayer = null;
+          nonplayer = null;
           isExtraRoll = false;
-          extra = 7;
-          currentPlayer.work = "Extra Roll Cancelled by Opponent!";
-          e++;
           currentPlayer = (currentPlayer == player1) ? player2 : player1;
-          return;
+          lastPlayer = (currentPlayer == player1) ? player2 : player1;
         }
 
+        currentPlayer = (currentPlayer == player1) ? player2 : player1;
+        lastPlayer = (currentPlayer == player1) ? player2 : player1;
         // ✅ If it's the extra roll player’s turn
-        if (currentPlayer == extraPlayer) {
-          extra -= diceRoll;
 
-          if (extra == 0) {
-            currentPlayer.addPoints(1);
-            currentPlayer.work = "SCORED POINT!";
-            isExtraRoll = false;
-            e++;
-          } else if (extra < 0) {
-            currentPlayer.work = "MISSED!";
-            isExtraRoll = false;
-            e++;
+        print("extra : $cname----non:$lname");
+        if (isExtraRoll) {
+          int diff = extra - diceRoll;
+          print("extra Roll->$diff");
+          if (diff == 0) {
+            extraPlayer!.addPoints(1);
+            extraPlayer!.work = "GOALLLLL!!!!!!";
           } else {
-            currentPlayer.work = "Need $extra more to score!";
+            extra = 7 - diceRoll;
+            extraPlayer!.work = "MISSED\nNeed $extra!";
           }
-
-          // Don't move the player — they're locked
-          currentPlayer = (currentPlayer == player1) ? player2 : player1;
           return;
         }
-
         // ✅ If opponent’s turn, let them move normally
       }
 
-      if (isCornerRoll == true) {
+      if (isCornerRoll) {
         isCornerRoll = false;
         if ([6].contains(diceRoll)) {
           currentPlayer.addPoints(1);
@@ -123,6 +143,7 @@ class _GameScreenState extends State<GameScreen> {
         half = "2nd-half";
       }
       newPos = currentPlayer.position + diceRoll;
+      print("pos$newPos");
       int pointe = purpleTiles[e];
       if (newPos >= pointe) {
         print("check point $pointe, pos:$newPos");
@@ -135,26 +156,29 @@ class _GameScreenState extends State<GameScreen> {
         currentPlayer.addPoints(1);
         currentPlayer.work = "GOALLLLL!!!!!!";
       }
-      if (redTiles.contains(newPos) ||
-          (currentPlayer.ref % 1 == 0 && currentPlayer.ref != 0.0)) {
+      if (redTiles.contains(newPos)) {
         currentPlayer.subPoints(1);
-        if (redTiles.contains(newPos)) currentPlayer.work = "RED CARD ||";
+        currentPlayer.work = "RED CARD ||";
       }
+
       if (yellowTiles.contains(newPos)) {
         currentPlayer.addRef(.5);
         currentPlayer.work = "YELLOW CARD || ";
+        if (currentPlayer.ref % 1 == 0 && currentPlayer.ref != 0.0) {
+          currentPlayer.subPoints(1);
+        }
       }
       if (violetTiles.contains(newPos)) {
         currentPlayer.moveTo(newPos - 2 * diceRoll);
         currentPlayer.work = "OFF SIDE //";
       }
-      if (purpleTiles.contains(newPos)) {
-        isExtraRoll = true;
-        extra = 7;
-        extraPlayer = currentPlayer; // ✅ Store who activated it
-        currentPlayer.work = "Extra Roll Activated! Need 7!";
-        e = purpleTiles.indexOf(newPos);
-        return; // Player does NOT move now
+      if (newPos == purpleTiles[e]) {
+        extraPlayer ??= currentPlayer;
+        nonplayer ??= lastPlayer;
+        // ✅ Store who activated it
+        extra = 7 - diceRoll;
+        currentPlayer.work = "Extra Roll Activated! Need $extra!";
+        // Player does NOT move now
       }
 
       final specialTiles = {
@@ -194,12 +218,13 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _buildScoreCard(Player player) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       width: 100,
       height: 150,
       color: Colors.transparent, // Transparent background
       child: Column(
         children: [
+          const SizedBox(height: 2),
           CircleAvatar(
             backgroundColor: const Color(0xFFEFFCD9),
             radius: 30,
@@ -233,43 +258,49 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _middleCard() {
     return Container(
-      width: 0100,
+      width: 100,
       height: 150,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(1),
       color: Colors.transparent,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Text(
             half,
-            style: TextStyle(
+            style: GoogleFonts.bebasNeue(
               fontSize: 12,
+              color: Colors.red,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFEFFCD9),
+              letterSpacing: 1.5,
             ),
           ),
-          const Text(
+          const SizedBox(height: 2),
+          Text(
             "V/S", // replace with your dynamic score if needed
-            style: TextStyle(
-              fontSize: 24,
-              color: Color(0xFFEFFCD9),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Text(
-            "Score:", // replace with your dynamic score if needed
-            style: TextStyle(
-              fontSize: 18,
-              color: Color(0xFFEFFCD9),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Text(
-            "Warning",
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.redAccent,
+            style: GoogleFonts.bebasNeue(
+              fontSize: 36,
+              color: Pallate.lightcream,
               fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            "Score:", // replace with your dynamic score if needed
+            style: GoogleFonts.bebasNeue(
+              fontSize: 18,
+              color: Pallate.lightcream,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Warning",
+            style: GoogleFonts.bebasNeue(
+              fontSize: 14,
+              color: Colors.red,
+              letterSpacing: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
@@ -314,8 +345,8 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text("LUDO FOOTBALL GAME"),
         centerTitle: true,
       ),
@@ -334,12 +365,12 @@ class _GameScreenState extends State<GameScreen> {
               // Score Cards
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 42.0, vertical: 16),
+                    const EdgeInsets.symmetric(horizontal: 54.0, vertical: 16),
                 child: Container(
                   padding:
                       const EdgeInsets.all(1), // padding inside the big box
                   decoration: BoxDecoration(
-                    color: Color(0xFF396859)
+                    color: Pallate.darkGreen
                         .withAlpha(128), // semi-transparent white bg
                     borderRadius: BorderRadius.circular(16), // rounded corners
                   ),
@@ -364,7 +395,7 @@ class _GameScreenState extends State<GameScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Color(0xFF396859).withAlpha(128),
+                      color: Pallate.darkGreen.withAlpha(128),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.black12),
                     ),
@@ -401,28 +432,32 @@ class _GameScreenState extends State<GameScreen> {
                   children: [
                     // Row 1: Player Turn and Last Player Work
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Left Box - Player Turn
-                        Expanded(
-                          child: Container(
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: currentPlayer.color,
-                              borderRadius: BorderRadius.circular(12),
-                              border:
-                                  Border.all(color: Colors.purple, width: 3),
-                            ),
-                            child: Center(
-                              child: Text(
-                                "${currentPlayer.name.toUpperCase()}'S\nTURN",
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.2,
-                                ),
+                        // Left Square Box - Current Turn
+                        Container(
+                          height: 80,
+                          width: 80,
+                          decoration: BoxDecoration(
+                            color: currentPlayer.color,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Pallate.lightcream, // Shadow color
+                                blurRadius: 1, // Softness of the shadow
+                                offset: Offset(4, 4), // Position of the shadow
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              "${currentPlayer.name.toUpperCase()}'S\nTURN",
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.nunito(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                height: 1.1,
                               ),
                             ),
                           ),
@@ -430,24 +465,30 @@ class _GameScreenState extends State<GameScreen> {
 
                         const SizedBox(width: 16),
 
-                        // Right Box - Last Player Work
-                        Expanded(
-                          child: Container(
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: lastPlayer.color,
-                              borderRadius: BorderRadius.circular(12),
-                              border:
-                                  Border.all(color: Colors.purple, width: 3),
-                            ),
-                            child: Center(
-                              child: Text(
-                                lastPlayer.work,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        // Right Square Box - Last Player Work
+                        Container(
+                          height: 80,
+                          width: 80,
+                          decoration: BoxDecoration(
+                            color: lastPlayer.color,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Pallate.lightcream, // Shadow color
+                                blurRadius: 1, // Softness of the shadow
+                                offset: Offset(4, 4), // Position of the shadow
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              lastPlayer.work,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.nunito(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                height: 1.1,
                               ),
                             ),
                           ),
@@ -465,15 +506,17 @@ class _GameScreenState extends State<GameScreen> {
                           width: 75,
                           height: 75,
                           padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.purple, width: 3),
-                          ),
                           child: Dice3DWidget(
+                            key: ValueKey(
+                                "${currentPlayer.name}_${currentPlayer.mode}_${DateTime.now()}"),
                             diceRoll: diceRoll,
+                            mode: currentPlayer.mode,
                             onRollComplete: (rolledNumber) {
+                              print("pass mode: ${currentPlayer.mode}");
                               print("Dice rolled: $rolledNumber");
+                              String lname = lastPlayer.name;
+                              String cname = currentPlayer.name;
+                              print("currnet : $cname----last:$lname");
                               setState(() {
                                 diceRoll = rolledNumber;
                                 rollDice(); // game logic here

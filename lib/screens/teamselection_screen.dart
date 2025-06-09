@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:football_ludo/interface/pallate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/teams.dart';
+import '../widgets/constants.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({Key? key}) : super(key: key);
@@ -56,23 +57,47 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen>
   // Track selected team index for home and away teams separately
   int homeTeamIndex = 0;
   int awayTeamIndex = 0;
-
+  late String mode;
   // Track whether we are selecting HOME or AWAY team
   bool selectingHomeTeam = true;
 
   // Animation controller and slide animation for transition between home/away
+
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    mode = args['mode'];
+  }
 
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: Duration(milliseconds: 400));
-    _slideAnimation =
-        Tween<Offset>(begin: Offset.zero, end: Offset(-1.0, 0.0)).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800), // total duration
     );
+
+    _slideAnimation = TweenSequence<Offset>([
+      TweenSequenceItem(
+        tween: Tween<Offset>(
+          begin: Offset.zero,
+          end: const Offset(-1.0, 0.0), // move left
+        ).chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<Offset>(
+          begin: const Offset(1.0, 0.0), // jump to right
+          end: Offset.zero, // slide in
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+    ]).animate(_controller);
   }
 
   @override
@@ -91,7 +116,7 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen>
           homeTeamIndex = (homeTeamIndex + 1) % allTeams.length;
         }
       } else {
-        if (left) {
+        if (left && selectingHomeTeam) {
           awayTeamIndex = (awayTeamIndex - 1) % allTeams.length;
           if (awayTeamIndex < 0) awayTeamIndex += allTeams.length;
         } else {
@@ -101,25 +126,22 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen>
     });
   }
 
-  void _onChoosePressed() {
+  void _onChoosePressed() async {
     if (selectingHomeTeam) {
-      // Slide to AWAY team selection
-      _controller.forward().then((_) {
-        setState(() {
-          selectingHomeTeam = false;
-        });
-        _controller.reverse();
+      await _controller.forward(); // Slide out + in
+      setState(() {
+        selectingHomeTeam = false;
       });
+      _controller.reset(); // Reset so it can animate again if needed
     } else {
-      // Navigate to GameScreen, passing selected team indices
-      print(
-          'Navigating with arguments: homeTeam=$homeTeamIndex, awayTeam=$awayTeamIndex');
+      // Navigate to game screen with selected teams
       Navigator.pushNamed(
         context,
         '/game',
         arguments: {
           'homeTeam': allTeams[homeTeamIndex],
           'awayTeam': allTeams[awayTeamIndex],
+          'mode': mode
         },
       );
     }
@@ -127,8 +149,8 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen>
 
   Widget _buildArrowButton(IconData icon, VoidCallback onTap) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 64,
+      height: 64,
       decoration: BoxDecoration(
         color: Pallate.darkGreen,
         borderRadius: BorderRadius.circular(12),
@@ -160,317 +182,242 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen>
             ),
           ),
 
-          Column(
+          Stack(
             children: [
-              // Top half
-              Expanded(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-                  child: Column(
-                    children: [
-                      // Row with Home and Help buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Background layout with top and bottom sections
+              Column(
+                children: [
+                  // Top half
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 40),
+                      child: Column(
                         children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Pallate.lightcream,
-                                  offset: const Offset(2, 1),
-                                  blurRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Pallate.darkGreen,
-                                fixedSize: const Size(72, 72),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                padding:
-                                    EdgeInsets.zero, // required for centering
-                                elevation: 5,
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context); // back to home
-                              },
-                              child: const Center(
-                                child: Icon(
-                                  Icons.chevron_left,
-                                  size: 36,
-                                  color: Pallate.lightcream,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Pallate.lightcream,
-                                  offset: const Offset(2, 1),
-                                  blurRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Pallate.darkGreen,
-                                fixedSize: const Size(72, 72),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                padding:
-                                    EdgeInsets.zero, // required for centering
-                                elevation: 5,
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context); // back to home
-                              },
-                              child: const Center(
-                                child: Icon(
-                                  Icons.question_mark_outlined,
-                                  size: 36,
-                                  color: Pallate.lightcream,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 65),
-
-                      // Centered HOME TEAM / AWAY TEAM text
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Pallate.darkGreen,
-                          borderRadius:
-                              BorderRadius.circular(24), // <-- move here
-                          // Optional: add a border
-                          // border: Border.all(color: Pallate.lightcream, width: 2),
-                        ),
-                        child: Text(
-                          selectingHomeTeam ? 'HOME TEAM' : 'AWAY TEAM',
-                          style: GoogleFonts.nunito(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Pallate.lightcream,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black54,
-                                blurRadius: 3,
-                                offset: Offset(2, 2),
-                              ),
+                          // Row with Home and Help buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              buildIconButton(Icons.chevron_left, () {
+                                Navigator.pop(context);
+                              }),
+                              buildIconButton(Icons.question_mark_outlined, () {
+                                Navigator.pop(context);
+                              }),
                             ],
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 150),
+                          const SizedBox(height: 65),
 
-              // Bottom half
-              Expanded(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Choose Button
-                      ElevatedButton(
-                        onPressed: _onChoosePressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Pallate.lightcream,
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 60, vertical: 20),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24)),
-                          elevation: 7,
-                        ),
-                        child: Text(
-                          'CHOOSE',
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 32,
-                            color: Pallate.darkGreen,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Row with trophy and person buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
+                          // Centered HOME TEAM / AWAY TEAM text
                           Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
                             decoration: BoxDecoration(
+                              color: Pallate.darkGreen,
                               borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Pallate.lightcream,
-                                  offset: const Offset(2, 1),
-                                  blurRadius: 1,
-                                ),
-                              ],
                             ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Pallate.darkGreen,
-                                fixedSize: const Size(72, 72),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                padding:
-                                    EdgeInsets.zero, // required for centering
-                                elevation: 5,
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context); // back to home
-                              },
-                              child: const Center(
-                                child: Icon(
-                                  Icons.emoji_events_outlined,
-                                  size: 36,
-                                  color: Pallate.lightcream,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Pallate.lightcream,
-                                  offset: const Offset(2, 1),
-                                  blurRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Pallate.darkGreen,
-                                fixedSize: const Size(72, 72),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                padding:
-                                    EdgeInsets.zero, // required for centering
-                                elevation: 5,
-                              ),
-                              onPressed: () {
-                                Navigator.pop(context); // back to home
-                              },
-                              child: const Center(
-                                child: Icon(
-                                  Icons.person_3_outlined,
-                                  size: 36,
-                                  color: Pallate.lightcream,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(width: 48), // Reserve space for left arrow
-                    Container(
-                      width: 250,
-                      height: 300,
-                      decoration: BoxDecoration(
-                        color: Pallate.lightcream,
-                        borderRadius: BorderRadius.circular(48),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Pallate.darkGreen,
-                            blurRadius: 1,
-                            offset: const Offset(6, 3),
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Positioned(
-                            top: 24,
-                            left: 24,
-                            right: 24,
-                            bottom: 72,
-                            child: Image.asset(
-                              selectingHomeTeam
-                                  ? allTeams[homeTeamIndex].logo
-                                  : allTeams[awayTeamIndex].logo,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 6,
-                            left: 0,
-                            right: 0,
                             child: Text(
-                              selectingHomeTeam
-                                  ? allTeams[homeTeamIndex].name.toUpperCase()
-                                  : allTeams[awayTeamIndex].name.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.bebasNeue(
-                                fontSize: 36,
-                                color: Pallate.darkGreen,
+                              selectingHomeTeam ? 'HOME TEAM' : 'AWAY TEAM',
+                              style: GoogleFonts.nunito(
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
+                                color: Pallate.lightcream,
+                                shadows: [
+                                  const Shadow(
+                                    color: Colors.black54,
+                                    blurRadius: 3,
+                                    offset: Offset(2, 2),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 48), // Reserve space for right arrow
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 150),
 
-                // Left Arrow (on top)
-                Positioned(
-                  left:
-                      MediaQuery.of(context).size.width / 2 - 250 / 2 - 48 - 24,
-                  child: _buildArrowButton(
-                      Icons.chevron_left, () => _onArrowPressed(true)),
-                ),
+                  // Bottom half
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 40),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            onPressed: _onChoosePressed,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Pallate.lightcream,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 60, vertical: 20),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              elevation: 7,
+                            ),
+                            child: Text(
+                              'CHOOSE',
+                              style: GoogleFonts.bebasNeue(
+                                fontSize: 32,
+                                color: Pallate.darkGreen,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(2, (index) {
+                              bool isSelected =
+                                  (selectingHomeTeam && index == 0) ||
+                                      (!selectingHomeTeam && index == 1);
 
-                // Right Arrow (on top)
-                Positioned(
-                  right:
-                      MediaQuery.of(context).size.width / 2 - 250 / 2 - 48 - 24,
-                  child: _buildArrowButton(
-                      Icons.chevron_right, () => _onArrowPressed(false)),
+                              return GestureDetector(
+                                onTap: () {
+                                  bool shouldSwitch =
+                                      (index == 0 && !selectingHomeTeam) ||
+                                          (index == 1 && selectingHomeTeam);
+                                  if (shouldSwitch) {
+                                    _controller.forward().then((_) {
+                                      setState(() {
+                                        selectingHomeTeam = !selectingHomeTeam;
+                                      });
+                                      _controller.forward();
+                                    });
+                                  }
+                                },
+                                child: AnimatedContainer(
+                                  duration: Duration(milliseconds: 300),
+                                  margin: EdgeInsets.symmetric(horizontal: 6),
+                                  width: isSelected ? 24 : 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Pallate.lightcream
+                                        : Pallate.lightcream.withAlpha(64),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Trophy & Person Buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              buildIconButton(Icons.emoji_events_outlined, () {
+                                Navigator.pop(context);
+                              }),
+                              buildIconButton(Icons.person_3_outlined, () {
+                                Navigator.pop(context);
+                              }),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Center team logo card with arrows
+              SlideTransition(
+                position: _slideAnimation,
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(width: 48),
+                          Container(
+                            width: 250,
+                            height: 300,
+                            decoration: BoxDecoration(
+                              color: Pallate.lightcream,
+                              borderRadius: BorderRadius.circular(48),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Pallate.darkGreen,
+                                  blurRadius: 1,
+                                  offset: const Offset(6, 3),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Positioned(
+                                  top: 24,
+                                  left: 24,
+                                  right: 24,
+                                  bottom: 72,
+                                  child: Image.asset(
+                                    selectingHomeTeam
+                                        ? allTeams[homeTeamIndex].logo
+                                        : allTeams[awayTeamIndex].logo,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 6,
+                                  left: 0,
+                                  right: 0,
+                                  child: Text(
+                                    selectingHomeTeam
+                                        ? allTeams[homeTeamIndex]
+                                            .name
+                                            .toUpperCase()
+                                        : allTeams[awayTeamIndex]
+                                            .name
+                                            .toUpperCase(),
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.bebasNeue(
+                                      fontSize: 36,
+                                      color: Pallate.darkGreen,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
+                      ),
+
+                      // Left Arrow
+                      Positioned(
+                        left: MediaQuery.of(context).size.width / 2 -
+                            250 / 2 -
+                            48 -
+                            24,
+                        child: _buildArrowButton(
+                            Icons.chevron_left, () => _onArrowPressed(true)),
+                      ),
+
+                      // Right Arrow
+                      Positioned(
+                        right: MediaQuery.of(context).size.width / 2 -
+                            250 / 2 -
+                            48 -
+                            24,
+                        child: _buildArrowButton(
+                            Icons.chevron_right, () => _onArrowPressed(false)),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          )
+              ),
+            ],
+          ),
 
           // Slide animation overlay (for switching between HOME and AWAY team)
           // Using SlideTransition on the entire screen content could be done,
